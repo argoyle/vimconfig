@@ -1,0 +1,31 @@
+#!/bin/bash
+#
+# Copyright (C) 2005,
+#   Stefano Zacchiroli	<zack@cs.unibo.it>
+#   Enrico Tassi	<tassi@cs.unibo.it>
+#
+# This is free software, you can redistribute it and/or modify it under the
+# terms of the GNU General Public License version 2 as published by the Free
+# Software Foundation.
+#
+
+vimdiff="gvimdiff.bat -f"
+suffix="vimcvsdiff"
+files="$1"
+if [ -z "$files" ]; then
+  files=$(cvs -n update -r HEAD 2> /dev/null | grep -e "^[MU]" | cut -c 3-)
+fi
+for f in $files; do
+  if ! [ -f $f ]; then break; fi
+  patch="/tmp/$$.patch.$suffix"
+  orig="/tmp/$$.orig.$suffix"
+  trap "rm -f $patch $orig" EXIT
+  cp "$f" $orig
+  cut -d '/' -f 2 < CVS/Entries | grep "^$f\$" > /dev/null || break
+  cvs diff -r HEAD -u "$f" > $patch
+  if ! [ $? -eq 1 ]; then break; fi
+  cp "$f" $orig
+  patch -R -p0 $orig $patch
+  $vimdiff $orig $f
+done
+

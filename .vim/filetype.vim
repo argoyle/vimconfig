@@ -1,1 +1,3 @@
-au BufNewFile,BufRead *.api,*.apy,*.apv,*.cpy		setf plsql
+" SQL (all but the first one for Oracle Designer)
+au BufNewFile,BufRead *.sql,*.tyb,*.typ,*.tyc,*.pkb,*.pks,*.api,*.apy,*.apv,*.cpi,*.cpy,*.cre,*.alt,*.trg,afiedt.buf	setf plsql
+

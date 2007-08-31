@@ -14,15 +14,21 @@ setglobal fileencoding=latin1
 " Enable syntax highlighting
 syntax on
 
-" My favourite font
-set gfn=DejaVu\ Sans\ Mono\ 11
-
 " Color-setup
-"colorscheme desert
-colorscheme settlemyer
+"if has("autocmd")
+  "autocmd ColorScheme * hi Pmenu guibg=Yellow guifg=Black | hi Pmenusel guibg=DarkGray guifg=White | hi CursorLine guibg=Yellow guifg=Black
+"endif
+"colorscheme settlemyer
+"colorscheme vibrantink
+let g:rdark_current_line=1
+colorscheme rdark
+"colorscheme argoyle
 
 " Position and size for GUI
 if has("gui_running")
+   " My favourite font
+   set gfn=DejaVu_Sans_Mono:h9:cANSI
+   "set gfn=Bitstream\ Vera\ Sans\ Mono
    winpos 0 0
    set columns=120
    set lines=80
@@ -52,6 +58,7 @@ set lazyredraw
 set nowrap
 set nosol
 set nrformats-=octal
+set mouse=a
 
 runtime macros/matchit.vim
 filetype plugin indent on
@@ -64,17 +71,22 @@ nmap ,cl :let @*=expand("%:p")<CR>
 nnoremap ' `
 nnoremap ` '
 
+imap ;d =strftime("%Y-%m-%d")
+
 inoreabbr \date\ <c-r>=strftime("%y%m%d")<CR>
 
-hi Pmenu guibg=Yellow guifg=Black
-hi Pmenusel guibg=DarkGray guifg=White
-
-" Setup Cygwin
-"set shell=C:/cygwin/bin/bash
-"let $BASH_ENV='~/.bashrc'
-"let &shellcmdflag='-c'
-"set shellxquote='
-"set shellslash
+if has("gui_running")
+  set shell=cmd.exe
+  " Setup Cygwin
+  "set shell=C:/cygwin/bin/bash
+  "let $BASH_ENV='~/.bashrc'
+  "let g:netrw_cygwin=1
+  "let &shellcmdflag='-lc'
+  let &shellcmdflag='/q /c'
+  "set shellxquote='
+  set shellslash
+  let g:netrw_scp_cmd = 'c:/Progra~1/PuTTY/pscp.exe -q -batch'
+endif
 
 if has("statusline")
    set statusline=%<%f\ %h%m%r%=%y\ %k[%{(&fenc\ ==\\"\"?&enc:&fenc).(&bomb?\",BOM\":\"\")}]\ %-14.(%l,%c%V%)\ %P
@@ -95,9 +107,7 @@ endif " has("autocmd")
 if $OS =~ "Windows"
    let VCSCommandCVSExec="c:/cygwin/bin/cvs"
 endif " $OS =~ "Windows"
-
-hi Pmenu guibg=Yellow guifg=Black
-hi Pmenusel guibg=DarkGray guifg=White
+let g:miniBufExplForceSyntaxEnable=1
 
 function s:Cursor_Moved()
 

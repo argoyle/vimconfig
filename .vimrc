@@ -31,7 +31,11 @@ colorscheme rdark
 " Position and size for GUI
 if has("gui_running")
    " My favourite font
-   set gfn=DejaVu_Sans_Mono:h9:cANSI
+   if $OS =~ "Windows"
+      set gfn=DejaVu_Sans_Mono:h9:cANSI
+   else
+      set gfn=DejaVu\ Sans\ Mono\ 10
+   endif " $OS =~ "Windows"
    "set gfn=Bitstream\ Vera\ Sans\ Mono
    winpos 0 0
    set columns=120
@@ -79,7 +83,7 @@ imap ;d =strftime("%Y-%m-%d")
 
 inoreabbr \date\ <c-r>=strftime("%y%m%d")<CR>
 
-if has("gui_running")
+if has("gui_running") && $OS =~ "Windows"
   set shell=cmd.exe
   " Setup Cygwin
   "set shell=C:/cygwin/bin/bash

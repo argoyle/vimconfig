@@ -1,2 +1,2 @@
 " Oracle PL/SQL package specification, body etc.
-au BufNewFile,BufRead *.api,*.apy,*.cpy,*.apv,*.sql	setf plsql
+au BufNewFile,BufRead *.sql,*.tyb,*.typ,*.tyc,*.pkb,*.pks,*.api,*.apy,*.apv,*.cpi,*.cpy,*.cre,*.alt,*.trg,afiedt.buf	setf plsql

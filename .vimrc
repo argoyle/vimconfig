@@ -11,6 +11,10 @@ set termencoding=latin1
 set fileencodings=ucs-bom,utf-8,latin1
 setglobal fileencoding=latin1
 
+set runtimepath+=~/Install/VimConfig/.vim/before
+set runtimepath+=~/Install/VimConfig/.vim
+set runtimepath+=~/Install/VimConfig/.vim/after
+
 " Enable syntax highlighting
 syntax on
 

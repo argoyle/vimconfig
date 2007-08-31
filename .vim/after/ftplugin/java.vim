@@ -1,0 +1,1 @@
+set omnifunc=javacomplete#Complete

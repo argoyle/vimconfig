@@ -57,7 +57,7 @@ set list
 set listchars=tab:»»,trail:·
 set tags=./.tags;/
 set showmatch
-set formatoptions+=ro
+set formatoptions+=crowan
 set fileformats=unix,dos
 set wildmode=list:longest
 set diffopt+=iwhite

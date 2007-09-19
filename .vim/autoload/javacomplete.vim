@@ -1,8 +1,8 @@
 " Vim completion script	- hit 80% complete tasks
-" Version:	0.77 beta
+" Version:	0.77
 " Language:	Java
 " Maintainer:	cheng fang <fangread@yahoo.com.cn>
-" Last Change:	2007-09-16
+" Last Change:	2007-09-19
 " Copyright:	Copyright (C) 2006-2007 cheng fang. All rights reserved.
 " License:	Vim License	(see vim's :help license)
 
@@ -102,7 +102,7 @@ let b:errormsg = ''
 
 " script variables						{{{1
 let s:cache = {}	" FQN -> member list, e.g. {'java.lang.StringBuffer': classinfo, 'java.util': packageinfo, '/dir/TopLevelClass.java': compilationUnit}
-let s:files = {}	" srouce file path -> properties, e.g. {expand(filename): {'unit': compilationUnit, 'changedtick': tick, }}
+let s:files = {}	" srouce file path -> properties, e.g. {filekey: {'unit': compilationUnit, 'changedtick': tick, }}
 let s:history = {}	" 
 
 
@@ -246,7 +246,7 @@ function! javacomplete#Complete(findstart, base)
   elseif b:incomplete !~ '^\s*$'
     " only need methods
     if b:context_type == s:CONTEXT_METHOD_PARAM
-      let methods = s:SearchForName(b:incomplete, 0, 1, 1)[1]
+      let methods = s:SearchForName(b:incomplete, 0, 1)[1]
       call extend(result, eval('[' . s:DoGetMethodList(methods) . ']'))
 
     else
@@ -280,7 +280,7 @@ function! javacomplete#Complete(findstart, base)
   endif
 
   if strlen(b:errormsg) > 0
-    echoerr 'omni-completion error: ' . b:errormsg
+    echoerr 'javacomplete error: ' . b:errormsg
     let b:errormsg = ''
   endif
 endfunction
@@ -350,7 +350,7 @@ fu! s:CompleteAfterWord(incomplete)
 	let text = matchstr(s:Prune(item.text, -1), '\s*' . s:RE_TYPE_DECL)
 	if text != ''
 	  let subs = split(substitute(text, '\s*' . s:RE_TYPE_DECL, '\1;\2;\3', ''), ';', 1)
-	  if subs[2] =~ '^' . a:incomplete && (subs[0] =~ '\C\<public\>' || fnamemodify(bufname(item.bufnr), ':p:h') == expand('%:p:h'))
+	  if subs[2] =~# '^' . a:incomplete && (subs[0] =~ '\C\<public\>' || fnamemodify(bufname(item.bufnr), ':p:h') == expand('%:p:h'))
 	    call add(types, {'kind': 'C', 'word': subs[2]})
 	  endif
 	endif
@@ -363,7 +363,7 @@ fu! s:CompleteAfterWord(incomplete)
 
   " add variables and members in source files
   if b:context_type == s:CONTEXT_AFTER_DOT
-    let matches = s:SearchForName(a:incomplete, 0, 1, 1)
+    let matches = s:SearchForName(a:incomplete, 0, 0)
     let result += sort(eval('[' . s:DoGetFieldList(matches[2]) . ']'))
     let result += sort(eval('[' . s:DoGetMethodList(matches[1]) . ']'))
   endif
@@ -372,6 +372,7 @@ fu! s:CompleteAfterWord(incomplete)
 
   return result
 endfu
+
 
 " Precondition:	expr must end with '.'
 " return members of the value of expression
@@ -625,6 +626,7 @@ function! s:CompleteAfterDot(expr)
 	  "if idx >= 0
 	  "  let ti = s:ArrayAccess(ti.fields[idx].t, items[ii])
 	  let members = s:SearchMember(ti, ident, 1, itemkind, 1, 0)
+	  let itemkind = 0
 	  if !empty(members[2])
 	    let ti = s:ArrayAccess(members[2][0].t, items[ii])
 	    let ii += 1
@@ -667,7 +669,7 @@ fu! s:MethodInvocation(expr, ti, itemkind)
 
   " all methods matched
   if empty(a:ti)
-    let methods = s:SearchForName(subs[0], 0, 0)[1]
+    let methods = s:SearchForName(subs[0], 0, 1)[1]
   elseif type(a:ti) == type({}) && get(a:ti, 'tag', '') == 'CLASSDEF'
     let methods = s:SearchMember(a:ti, subs[0], 1, a:itemkind, 1, 0, a:itemkind == 2)[1]
 "    let methods = s:filter(get(a:ti, 'methods', []), 'item.n == "' . subs[0] . '"')
@@ -864,9 +866,7 @@ fu! s:ProcessParentheses(expr, ...)
 
   " multi-dot-expr except for new expr
   elseif a:0 > 0 && stridx(a:expr, '.') != match(a:expr, '\.\s*$') && a:expr !~ '^\s*new\s\+'
-    "echo a:expr
     return s:ParseExpr(a:expr)
-    "return [a:expr]
   endif
   return [a:expr]
 endfu
@@ -901,6 +901,7 @@ function! s:GenerateImports()
 	break
       elseif !s:InComment(line("."), col(".")-1)
 	normal w
+	" TODO: search semicolon or import keyword, excluding comment
 	let stat = matchstr(getline(lnum)[col('.')-1:], '\(static\s\+\)\?\(' .s:RE_QUALID. '\%(\s*\.\s*\*\)\?\)\s*;')
 	if !empty(stat)
 	  call add(imports, stat[:-2])
@@ -911,42 +912,32 @@ function! s:GenerateImports()
 
   call cursor(lnum_old, col_old)
   return imports
-endfu
-
-fu! s:ParseImports(filepath, imports)
-  let props = get(s:files, a:filepath, {})
-  let props.imports		= a:imports
-  let props.imports_static	= []
-  let props.imports_star	= ['java.lang.']
-  let props.imports_fqn		= []
-  if a:filepath =~ '\.jsp$'
-    let props.imports_star += ['javax.servlet.', 'javax.servlet.http.', 'javax.servlet.jsp.']
-  endif
-
-  for import in a:imports
-    let subs = split(substitute(import, '\(static\s\+\)\?\(' .s:RE_QUALID. '\%(\s*\.\s*\*\)\?\)\s*$', '\1;\2', ''), ';', 1)
-    let qid = substitute(subs[1] , '\s', '', 'g')
-    if !empty(subs[0])
-      call add(props.imports_static, qid)
-    elseif qid[-1:] == '*'
-      call add(props.imports_star, qid[:-2])
-    else
-      call add(props.imports_fqn, qid)
-    endif
-  endfor
-  let s:files[a:filepath] = props
-  return props
-endfu
+endfunction
 
 fu! s:GetImports(kind, ...)
-  let filepath = a:0 > 0 && !empty(a:1) ? a:1 : expand('%:p')
-  let props = get(s:files, filepath, {})
+  let filekey = a:0 > 0 && !empty(a:1) ? a:1 : s:GetCurrentFileKey()
+  let props = get(s:files, filekey, {})
   if !has_key(props, a:kind)
-    if filepath == expand('%:p')
-      let props = s:ParseImports(filepath, s:GenerateImports())
-    else
-      let props = s:ParseImports(filepath, props.unit.imports)
+    let props['imports']	= filekey == s:GetCurrentFileKey() ? s:GenerateImports() : props.unit.imports
+    let props['imports_static']	= []
+    let props['imports_fqn']	= []
+    let props['imports_star']	= ['java.lang.']
+    if &ft == 'jsp' || filekey =~ '\.jsp$'
+      let props.imports_star += ['javax.servlet.', 'javax.servlet.http.', 'javax.servlet.jsp.']
     endif
+
+    for import in props.imports
+      let subs = split(substitute(import, '^\s*\(static\s\+\)\?\(' .s:RE_QUALID. '\%(\s*\.\s*\*\)\?\)\s*$', '\1;\2', ''), ';', 1)
+      let qid = substitute(subs[1] , '\s', '', 'g')
+      if !empty(subs[0])
+	call add(props.imports_static, qid)
+      elseif qid[-1:] == '*'
+	call add(props.imports_star, qid[:-2])
+      else
+	call add(props.imports_fqn, qid)
+      endif
+    endfor
+    let s:files[filekey] = props
   endif
   return get(props, a:kind, [])
 endfu
@@ -959,6 +950,7 @@ fu! s:SearchSingleTypeImport(name, fqns)
     return matches[0]
   elseif !empty(matches)
     echoerr 'Name "' . a:name . '" conflicts between ' . join(matches, ' and ')
+    return matches[0]
   endif
   return ''
 endfu
@@ -998,17 +990,18 @@ fu! s:SearchStaticImports(name, fullmatch)
     endif
   endif
 
-  let pattern = 'item.n ' . (a:fullmatch ? '==# ''' : '=~# ''^') . a:name . ''' && s:IsStatic(item.m)'
-  " search in all candidate types
+  " search in all candidates
   for typename in candidates
-    " check typename is a type name 
     let ti = get(s:cache, typename, 0)
     if type(ti) == type({}) && get(ti, 'tag', '') == 'CLASSDEF'
       let members = s:SearchMember(ti, a:name, a:fullmatch, 12, 1, 0)
       let result[1] += members[1]
       let result[2] += members[2]
-      "let result[1] += s:filter(get(ti, 'methods', []), pattern)	" TODO: use SearchMember
+      "let pattern = 'item.n ' . (a:fullmatch ? '==# ''' : '=~# ''^') . a:name . ''' && s:IsStatic(item.m)'
+      "let result[1] += s:filter(get(ti, 'methods', []), pattern)
       "let result[2]  += s:filter(get(ti, 'fields', []),  pattern)
+    else
+      " TODO: mark the wrong import declaration.
     endif
   endfor
   return result
@@ -1207,9 +1200,9 @@ endfunction
 "    It is allowed that several methods with the same name and signature.
 
 " first		return at once if found one.
-" cmp		cmp, 0 - match beginning, 1 - equal
+" fullmatch	1 - equal, 0 - match beginning
 " return [types, methods, fields, vars]
-fu! s:SearchForName(name, first, cmp, ...)
+fu! s:SearchForName(name, first, fullmatch)
   let result = [[], [], [], []]
   if s:IsKeyword(a:name)
     return result
@@ -1220,7 +1213,7 @@ fu! s:SearchForName(name, first, cmp, ...)
     " declared in current file
     let unit = javacomplete#parse()
     let targetPos = java_parser#MakePos(line('.')-1, col('.')-1)
-    let trees = s:SearchNameInAST(unit, a:name, targetPos, !a:cmp)
+    let trees = s:SearchNameInAST(unit, a:name, targetPos, a:fullmatch)
     for tree in trees
       if tree.tag == 'VARDEF'
 	call add(result[2], tree)
@@ -1236,14 +1229,13 @@ fu! s:SearchForName(name, first, cmp, ...)
     " Accessible inherited members
     let type = get(s:SearchTypeAt(unit, targetPos), -1, {})
     if !empty(type)
-      let members = s:SearchMember(type, a:name, !a:cmp, 2, 1, 0, 1)
+      let members = s:SearchMember(type, a:name, a:fullmatch, 2, 1, 0, 1)
       let result[0] += members[0]
       let result[1] += members[1]
       let result[2] += members[2]
 "      "let ti = s:AddInheritedClassInfo({}, type)
 "      if !empty(ti)
-"	" 	 TODO: use SearchMember统一地处理继承字段和可访问性
-"	let comparator = a:cmp ? "=~# '^" : "==# '"
+"	let comparator = a:fullmatch ? "=~# '^" : "==# '"
 "	let result[0] += s:filter(get(ti, 'classes', []), 'item   ' . comparator . a:name . "'")
 "	let result[1] += s:filter(get(ti, 'methods', []), 'item.n ' . comparator . a:name . "'")
 "	let result[2] += s:filter(get(ti, 'fields', []),  'item.n ' . comparator . a:name . "'")
@@ -1255,9 +1247,8 @@ fu! s:SearchForName(name, first, cmp, ...)
 "      endif
     endif
 
-
     " static import
-    let si = s:SearchStaticImports(a:name, !a:cmp)
+    let si = s:SearchStaticImports(a:name, a:fullmatch)
     let result[1] += si[1]
     let result[2] += si[2]
   endif
@@ -1287,7 +1278,7 @@ function! s:GetDeclaredClassName(var)
 
   " use java_parser.vim
   if javacomplete#GetSearchdeclMethod() == 4
-    let variable = get(s:SearchForName(var, 1, 0, 1)[2], -1, {})
+    let variable = get(s:SearchForName(var, 1, 1)[2], -1, {})
     return get(variable, 'tag', '') == 'VARDEF' ? java_parser#type2Str(variable.vartype) : get(variable, 't', '')
   endif
 
@@ -1327,7 +1318,7 @@ fu! javacomplete#parse(...)
 
   let changed = 0
   if filename == '%'
-    let filename = expand('%:p')
+    let filename = s:GetCurrentFileKey()
     let props = get(s:files, filename, {})
     if get(props, 'changedtick', -1) != b:changedtick
       let changed = 1
@@ -1521,6 +1512,10 @@ endfu
 
 fu! s:HasKeyword(name)
   return a:name =~# s:RE_KEYWORDS
+endfu
+
+fu! s:TailOfQN(qn)
+  return a:qn[strridx(a:qn, '.')+1:]
 endfu
 
 " options								{{{1
@@ -2003,6 +1998,24 @@ fu! javacomplete#Exe(cmd)
   exe a:cmd
 endfu
 
+" cache utilities							{{{1
+
+" key of s:files for current buffer. It may be the full path of current file or the bufnr of unnamed buffer, and is updated when BufEnter, BufLeave.
+fu! s:GetCurrentFileKey()
+  return has("autocmd") ? s:curfilekey : empty(expand('%')) ? bufnr('%') : expand('%:p')
+endfu
+
+fu! s:SetCurrentFileKey()
+  let s:curfilekey = empty(expand('%')) ? bufnr('%') : expand('%:p')
+endfu
+
+call s:SetCurrentFileKey()
+if has("autocmd")
+  autocmd BufEnter *.java call s:SetCurrentFileKey()
+  autocmd FileType java call s:SetCurrentFileKey()
+endif
+
+
 " Log utilities								{{{1
 fu! s:WatchVariant(variant)
   "echoerr a:variant
@@ -2273,15 +2286,15 @@ fu! s:DoGetClassInfo(class, ...)
   endif
 
 
-  if a:class !~ '^\s*' . s:RE_QUALID . '\s*$' || s:IsKeyword(a:class)
+  if a:class !~ '^\s*' . s:RE_QUALID . '\s*$' || s:HasKeyword(a:class)
     return {}
   endif
 
 
   let typename	= substitute(a:class, '\s', '', 'g')
-  let filepath	= a:0 > 0 ? a:1 : expand('%:p')
+  let filekey	= a:0 > 0 ? a:1 : s:GetCurrentFileKey()
   let packagename = a:0 > 1 ? a:2 : s:GetPackageName()
-  let srcpath	= join(s:GetSourceDirs(filepath, packagename), ',')
+  let srcpath	= join(s:GetSourceDirs(a:0 > 0 && a:1 != bufnr('%') ? a:1 : expand('%:p'), packagename), ',')
 
   let names = split(typename, '\.')
   " remove the package name if in the same packge
@@ -2312,7 +2325,7 @@ fu! s:DoGetClassInfo(class, ...)
 
   " 1 & 2.
   " NOTE: inherited types are treated as normal
-  if filepath == expand('%:p')
+  if filekey == s:GetCurrentFileKey()
     let simplename = typename[strridx(typename, '.')+1:]
     if s:FoundClassDeclaration(simplename) != 0
       call s:Info('A1&2')
@@ -2323,7 +2336,7 @@ fu! s:DoGetClassInfo(class, ...)
       endif
     endif
   else
-    let ci = s:GetClassInfoFromSource(typename, filepath)
+    let ci = s:GetClassInfoFromSource(typename, filekey)
     if !empty(ci)
       return ci
     endif
@@ -2331,7 +2344,7 @@ fu! s:DoGetClassInfo(class, ...)
 
   " 3.
   " NOTE: PackageName.Ident, TypeName.Ident
-  let fqn = s:SearchSingleTypeImport(typename, s:GetImports('imports_fqn', filepath))
+  let fqn = s:SearchSingleTypeImport(typename, s:GetImports('imports_fqn', filekey))
   if !empty(fqn)
     call s:Info('A3')
     call s:DoGetTypeInfoForFQN([fqn], srcpath)
@@ -2346,7 +2359,7 @@ fu! s:DoGetClassInfo(class, ...)
   " NOTE: Keeps the fqn of the same package first!!
   call s:Info('A4&5')
   let fqns = [empty(packagename) ? typename : packagename . '.' . typename]
-  for p in s:GetImports('imports_star', filepath)
+  for p in s:GetImports('imports_star', filekey)
     call add(fqns, p . typename)
   endfor
   call s:DoGetTypeInfoForFQN(fqns, srcpath)
@@ -2427,7 +2440,7 @@ fu! s:GetClassInfoFromSource(class, filename)
     let targetPos = a:filename == '%' ? java_parser#MakePos(line('.')-1, col('.')-1) : -1
     for t in s:SearchTypeAt(unit, targetPos, 1)
       if t.name == a:class
-	let t.filepath = a:filename == '%' ? expand('%:p') : expand(a:filename)
+	let t.filepath = a:filename == '%' ? s:GetCurrentFileKey() : expand(a:filename)
 	return s:Tree2ClassInfo(t)
 	"return s:AddInheritedClassInfo(s:Tree2ClassInfo(t), t)
       endif
@@ -2456,7 +2469,7 @@ fu! s:Tree2ClassInfo(t)
 
   " convert type name in extends to fqn for class defined in source files
   if !has_key(a:t, 'classpath') && has_key(a:t, 'extends')
-    if has_key(a:t, 'filepath') && a:t.filepath != expand('%:p')
+    if has_key(a:t, 'filepath') && a:t.filepath != s:GetCurrentFileKey()
       let filepath = a:t.filepath
       let packagename = get(s:files[filepath].unit, 'package', '')
     else
@@ -2736,7 +2749,6 @@ fu! s:DoGetMemberList(ci, kind)
     let s = substitute(s, '\<java\.lang\.', '', 'g')
     let s = substitute(s, '\<\(public\|static\|synchronized\|transient\|volatile\|final\|strictfp\|serializable\|native\)\s\+', '', 'g')
   endif
-
   return eval('[' . s . ']')
 endfu
 
@@ -2805,6 +2817,7 @@ fu! s:GetMembers(fqn, ...)
   return list
 endfu
 
+" a:1		incomplete mode
 " return packages in classes directories or source pathes
 fu! s:DoGetPackageInfoInDirs(package, onlyPackages, ...)
   let list = []
@@ -2820,14 +2833,14 @@ fu! s:DoGetPackageInfoInDirs(package, onlyPackages, ...)
   let matchpattern = a:0 > 0 ? a:package : a:package . '[\\/]'
   for f in split(globpath(join(pathes, ','), globpattern), "\n")
       for path in pathes
-	let idx = matchend(f, escape(path, ' \') . '[\\/]\?' . matchpattern)
+	let idx = matchend(f, escape(path, ' \') . '[\\/]\?\C' . matchpattern)
 	if idx != -1
 	  let name = (a:0 > 0 ? a:package : '') . strpart(f, idx)
 	  if f[-5:] == '.java'
 	    if !a:onlyPackages
 	      call add(list, {'kind': 'C', 'word': name[:-6]})
 	    endif
-	  elseif isdirectory(f) && f !~# 'CVS$'
+	  elseif name =~ '^' . s:RE_IDENTIFIER . '$' && isdirectory(f) && f !~# 'CVS$'
 	    call add(list, {'kind': 'P', 'word': name})
 	  endif
 	endif

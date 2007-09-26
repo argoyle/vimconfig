@@ -118,7 +118,7 @@ if $OS =~ "Windows"
 endif " $OS =~ "Windows"
 let g:miniBufExplForceSyntaxEnable=1
 
-function s:Cursor_Moved()
+function! s:Cursor_Moved()
 
   let cur_pos= line ('.')
 
@@ -137,7 +137,7 @@ if diff > 1 || diff < -1
 end
 
 let g:last_pos=cur_pos
-    
+
 endfunction
 
 autocmd CursorMoved,CursorMovedI * call s:Cursor_Moved()

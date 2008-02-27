@@ -1,5 +1,6 @@
 setlocal ts=3 sw=3 ai et
 setlocal iskeyword+=$
+setlocal iskeyword+=_
 
 setlocal formatoptions+=crowan
 setlocal comments=sr:/*,mb:*,ex:*/,b:--,:--

@@ -144,4 +144,13 @@ autocmd CursorMoved,CursorMovedI * call s:Cursor_Moved()
 let g:last_pos=0
 
 
-let g:miniBufExplForceSyntaxEnable=1
+function! MoveToClosed()
+  let text = getline ('.')
+  exe "normal \"_dd"
+
+  let paste_pos = search("Closed")
+  cursor(paste_pos)
+  exe "normal o<esc>"
+  setline(paste_pos+1, text)
+
+endfunction

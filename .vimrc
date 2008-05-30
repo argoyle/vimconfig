@@ -143,6 +143,7 @@ endfunction
 autocmd CursorMoved,CursorMovedI * call s:Cursor_Moved()
 let g:last_pos=0
 
+autocmd FileChangedShell * if v:fcs_reason == 'deleted' | set modified | endif
 
 function! MoveToClosed()
   let text = getline ('.')

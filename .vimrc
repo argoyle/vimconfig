@@ -144,6 +144,9 @@ endfunction
 autocmd CursorMoved,CursorMovedI * call s:Cursor_Moved()
 let g:last_pos=0
 
+" gitosis.conf has long lines. Make sure it's not wrapped
+au BufReadPre gitosis.conf setlocal tw=3000
+
 au FileChangedShell * call FCSHandler(expand("<afile>:p"))
 function! FCSHandler(name)
    let msg = 'File "'.a:name.'"'

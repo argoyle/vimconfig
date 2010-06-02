@@ -69,6 +69,7 @@ set nowrap
 set nosol
 set nrformats-=octal
 set mouse=a
+set eadirection=hor
 
 runtime macros/matchit.vim
 filetype plugin indent on
@@ -188,3 +189,5 @@ function! MoveToClosed()
   setline(paste_pos+1, text)
 
 endfunction
+
+set ea

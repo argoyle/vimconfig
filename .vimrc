@@ -191,5 +191,3 @@ function! MoveToClosed()
 endfunction
 
 set ea
-
-

@@ -191,3 +191,5 @@ function! MoveToClosed()
 endfunction
 
 set ea
+autocmd VimResized * set noea | set ea
+

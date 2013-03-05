@@ -75,6 +75,8 @@ runtime macros/matchit.vim
 filetype plugin indent on
 runtime! indent.vim
 
+call pathogen#infect()
+
 " Mappings for copying file and path to windows clipboard
 nmap ,cs :let @*=expand("%")<CR>
 nmap ,cl :let @*=expand("%:p")<CR>

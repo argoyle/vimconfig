@@ -195,3 +195,5 @@ endfunction
 set ea
 autocmd VimResized * set noea | set ea
 
+let g:splice_initial_layout_grid=1
+let g:splice_initial_scrollbind_grid=1
